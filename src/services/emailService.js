@@ -3,7 +3,8 @@ const nodemailer = require('nodemailer');
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 587,
-  secure: false, // Utilise STARTTLS sur le port 587 au lieu du port 465 bloqué
+  secure: false,
+  family: 4, // Force la connexion en IPv4 pour contourner le blocage IPv6 de Render
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
