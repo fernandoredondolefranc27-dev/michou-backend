@@ -32,38 +32,43 @@ exports.createBooking = async (req, res) => {
 
     bookings.push(newBooking);
 
-    // 1. Envoi de l'e-mail au client
+    // 1. Envoi sécurisé au client (Ignoré automatiquement si Resend bloque en mode test gratuit)
     if (email) {
-      await sendEmail({
-        to: email,
-        subject: `🎟️ Votre Pass Studio Michou [${passId}]`,
-        html: `
-          <div style="font-family: Arial, sans-serif; border: 2px solid #D4A72C; padding: 20px; background-color: #0d0d0d; color: #ffffff;">
-            <h2 style="color: #D4A72C; text-align: center;">MICHOU STUDIO — PASS DE RÉSERVATION</h2>
-            <p>Bonjour <strong>${name}</strong>,</p>
-            <p>Votre rendez-vous a bien été enregistré. Voici vos détails de réservation :</p>
-            
-            <div style="background: #1a1a1a; padding: 15px; border: 1px solid #333; margin: 15px 0;">
-              <h1 style="color: #D4A72C; text-align: center; margin: 0 0 10px 0;">${passId}</h1>
-              <p><strong>Service :</strong> ${service} (${duration || ''})</p>
-              <p><strong>Date demandée :</strong> ${date}</p>
-              <p><strong>Heure demandée :</strong> ${time}</p>
-              <p><strong>Téléphone :</strong> ${phone}</p>
-              <p><strong>Email :</strong> ${email}</p>
-              <p><strong>Demande particulière :</strong> ${notes || 'Aucune'}</p>
+      try {
+        await sendEmail({
+          to: email,
+          subject: `🎟️ Votre Pass Studio Michou [${passId}]`,
+          html: `
+            <div style="font-family: Arial, sans-serif; border: 2px solid #D4A72C; padding: 20px; background-color: #0d0d0d; color: #ffffff;">
+              <h2 style="color: #D4A72C; text-align: center;">MICHOU STUDIO — PASS DE RÉSERVATION</h2>
+              <p>Bonjour <strong>${name}</strong>,</p>
+              <p>Votre rendez-vous a bien été enregistré. Voici vos détails de réservation :</p>
+              
+              <div style="background: #1a1a1a; padding: 15px; border: 1px solid #333; margin: 15px 0;">
+                <h1 style="color: #D4A72C; text-align: center; margin: 0 0 10px 0;">${passId}</h1>
+                <p><strong>Service :</strong> ${service} (${duration || ''})</p>
+                <p><strong>Date demandée :</strong> ${date}</p>
+                <p><strong>Heure demandée :</strong> ${time}</p>
+                <p><strong>Téléphone :</strong> ${phone}</p>
+                <p><strong>Email :</strong> ${email}</p>
+                <p><strong>Demande particulière :</strong> ${notes || 'Aucune'}</p>
+              </div>
+              
+              <p style="color: #D4A72C; font-size: 0.85em;">
+                ⚠️ Pass valable uniquement le <strong>${date}</strong> jusqu'à 23h59. Passé cette limite, ce pass est expiré.
+              </p>
             </div>
-            
-            <p style="color: #D4A72C; font-size: 0.85em;">
-              ⚠️ Pass valable uniquement le <strong>${date}</strong> jusqu'à 23h59. Passé cette limite, ce pass est expiré.
-            </p>
-          </div>
-        `
-      });
+          `
+        });
+      } catch (clientEmailErr) {
+        console.warn("⚠️ [Mode Restreint Resend] L'e-mail client n'a pas pu être envoyé (normal sans nom de domaine vérifié) :", clientEmailErr.message);
+      }
     }
 
-    // 2. Notification complète envoyée au Studio
+    // 2. Notification PRIORITAIRE garantie envoyée au Studio (loulousecharles40@gmail.com)
+    const studioEmail = process.env.STUDIO_EMAIL || 'loulousecharles40@gmail.com';
     await sendEmail({
-      to: process.env.STUDIO_EMAIL,
+      to: studioEmail,
       subject: `🔔 NOUVELLE RÉSERVATION : ${name} [${passId}]`,
       html: `
         <div style="font-family: Arial, sans-serif; border: 2px solid #D4A72C; padding: 20px; background-color: #0d0d0d; color: #ffffff;">
@@ -95,6 +100,7 @@ exports.createBooking = async (req, res) => {
       pass: newBooking
     });
   } catch (error) {
+    console.error("❌ Erreur backend réservation :", error);
     res.status(500).json({ message: 'Erreur lors de la création de la réservation.' });
   }
 };
